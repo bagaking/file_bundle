@@ -5,7 +5,10 @@ entry = [
 ]
 
 exclude = [
-    "go.*"
+    "go.*",
+    "*.bundle"
 ]
 
 output = "merged_code.bundle"
+
+description = "new file"
