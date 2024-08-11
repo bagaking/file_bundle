@@ -262,47 +262,9 @@ func TestCLIRejectsEntryOutsideWorkingDirectory(t *testing.T) {
 				Entry:  tt.entry,
 				Output: "bundle.bundle",
 			}
-			var buf strings.Builder
-			if err := toml.NewEncoder(&buf).Encode(config); err != nil {
-				t.Fatal(err)
-			}
-			if err := os.WriteFile(configPath, []byte(buf.String()), 0o644); err != nil {
-				t.Fatal(err)
-			}
+			writeConfig(t, configPath, config)
 
-			originalArgs := os.Args
-			originalInput := input
-			originalOutput := output
-			originalShrink := shrink
-			originalTouchCMD := touchCMD
-			originalVerbose := verbose
-			originalLineCount := lineCount
-			originalCharCount := charCount
-			originalFileCount := fileCount
-			t.Cleanup(func() {
-				os.Args = originalArgs
-				input = originalInput
-				output = originalOutput
-				shrink = originalShrink
-				touchCMD = originalTouchCMD
-				verbose = originalVerbose
-				lineCount = originalLineCount
-				charCount = originalCharCount
-				fileCount = originalFileCount
-			})
-			setFlagArgs(t)
-			registerTestFlags()
-			os.Args = []string{"file_bundle", "-i", configPath}
-			input = ""
-			output = ""
-			shrink = false
-			touchCMD = false
-			verbose = false
-			lineCount = 0
-			charCount = 0
-			fileCount = 0
-
-			main()
+			runMainForTest(t, "-i", configPath)
 
 			gotBytes, err := os.ReadFile("bundle.bundle")
 			if err != nil {
@@ -319,6 +281,49 @@ func TestCLIRejectsEntryOutsideWorkingDirectory(t *testing.T) {
 				t.Errorf("fileCount after file_bundle -i paths.file_bundle_rc = %d, want 1", fileCount)
 			}
 		})
+	}
+}
+
+func TestCLIRejectsSymlinkOutsideWorkingDirectory(t *testing.T) {
+	parent := t.TempDir()
+	dir := filepath.Join(parent, "project")
+	if err := os.Mkdir(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	chdir(t, dir)
+
+	externalPath := filepath.Join(parent, "external.txt")
+	if err := os.WriteFile(externalPath, []byte("outside\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile("input.txt", []byte("inside\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(externalPath, "external-link.txt"); err != nil {
+		t.Skipf("os.Symlink(%q, %q) error = %v; skipping symlink boundary smoke", externalPath, "external-link.txt", err)
+	}
+
+	configPath := "links.file_bundle_rc"
+	writeConfig(t, configPath, Config{
+		Entry:  []string{"*"},
+		Output: "bundle.bundle",
+	})
+
+	runMainForTest(t, "-i", configPath)
+
+	gotBytes, err := os.ReadFile("bundle.bundle")
+	if err != nil {
+		t.Fatalf("os.ReadFile(%q) error = %v, want nil", "bundle.bundle", err)
+	}
+	got := string(gotBytes)
+	if !strings.Contains(got, "File: input.txt") {
+		t.Errorf("file_bundle -i links.file_bundle_rc bundle contains %q = false, want true:\n%s", "File: input.txt", got)
+	}
+	if strings.Contains(got, "outside") {
+		t.Errorf("file_bundle -i links.file_bundle_rc bundle contains external symlink content = true, want false:\n%s", got)
+	}
+	if strings.Contains(got, "File: external-link.txt") {
+		t.Errorf("file_bundle -i links.file_bundle_rc bundle contains symlink path = true, want false:\n%s", got)
 	}
 }
 
@@ -417,47 +422,9 @@ func TestCLIExcludesOutputCreatedBeforeGlobExpansion(t *testing.T) {
 		Entry:  []string{"*"},
 		Output: "bundle.bundle",
 	}
-	var buf strings.Builder
-	if err := toml.NewEncoder(&buf).Encode(config); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(configPath, []byte(buf.String()), 0o644); err != nil {
-		t.Fatal(err)
-	}
+	writeConfig(t, configPath, config)
 
-	originalArgs := os.Args
-	originalInput := input
-	originalOutput := output
-	originalShrink := shrink
-	originalTouchCMD := touchCMD
-	originalVerbose := verbose
-	originalLineCount := lineCount
-	originalCharCount := charCount
-	originalFileCount := fileCount
-	t.Cleanup(func() {
-		os.Args = originalArgs
-		input = originalInput
-		output = originalOutput
-		shrink = originalShrink
-		touchCMD = originalTouchCMD
-		verbose = originalVerbose
-		lineCount = originalLineCount
-		charCount = originalCharCount
-		fileCount = originalFileCount
-	})
-	setFlagArgs(t)
-	registerTestFlags()
-	os.Args = []string{"file_bundle", "-i", configPath}
-	input = ""
-	output = ""
-	shrink = false
-	touchCMD = false
-	verbose = false
-	lineCount = 0
-	charCount = 0
-	fileCount = 0
-
-	main()
+	runMainForTest(t, "-i", configPath)
 
 	gotBytes, err := os.ReadFile("bundle.bundle")
 	if err != nil {
@@ -582,12 +549,63 @@ func setFlagArgs(t *testing.T, args ...string) {
 	})
 }
 
+func runMainForTest(t *testing.T, args ...string) {
+	t.Helper()
+
+	originalArgs := os.Args
+	originalInput := input
+	originalOutput := output
+	originalShrink := shrink
+	originalTouchCMD := touchCMD
+	originalVerbose := verbose
+	originalLineCount := lineCount
+	originalCharCount := charCount
+	originalFileCount := fileCount
+	t.Cleanup(func() {
+		os.Args = originalArgs
+		input = originalInput
+		output = originalOutput
+		shrink = originalShrink
+		touchCMD = originalTouchCMD
+		verbose = originalVerbose
+		lineCount = originalLineCount
+		charCount = originalCharCount
+		fileCount = originalFileCount
+	})
+
+	setFlagArgs(t)
+	registerTestFlags()
+	os.Args = append([]string{"file_bundle"}, args...)
+	input = ""
+	output = ""
+	shrink = false
+	touchCMD = false
+	verbose = false
+	lineCount = 0
+	charCount = 0
+	fileCount = 0
+
+	main()
+}
+
 func registerTestFlags() {
 	flag.StringVar(&input, "i", "", "input .file_bundle_rc file name(s)")
 	flag.StringVar(&output, "o", "", "output file name")
 	flag.BoolVar(&shrink, "s", false, "shrink mode: trim unnecessary white space")
 	flag.BoolVar(&verbose, "v", false, "verbose mode")
 	flag.BoolVar(&touchCMD, "touch", false, "initialize a default _.file_bundle_rc")
+}
+
+func writeConfig(t *testing.T, path string, config Config) {
+	t.Helper()
+
+	var buf strings.Builder
+	if err := toml.NewEncoder(&buf).Encode(config); err != nil {
+		t.Fatalf("toml.Encode(%q) error = %v, want nil", path, err)
+	}
+	if err := os.WriteFile(path, []byte(buf.String()), 0o644); err != nil {
+		t.Fatalf("os.WriteFile(%q) error = %v, want nil", path, err)
+	}
 }
 
 func readConfig(t *testing.T, path string) Config {
