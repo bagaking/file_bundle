@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestShrinkContent(t *testing.T) {
@@ -190,16 +191,31 @@ func TestProcessFileWritesBundleSectionAndUpdatesCounters(t *testing.T) {
 	}
 	got := string(gotBytes)
 
-	wantSnippets := []string{
-		"==========\n",
-		"!! release snapshot\n",
-		"File: input.txt\n",
-		"Time: ",
-		"alpha\n\nbeta\n",
+	lines := strings.Split(got, "\n")
+	if len(lines) != 10 {
+		t.Fatalf("bundle output line count = %d, want 10:\n%s", len(lines), got)
 	}
-	for _, want := range wantSnippets {
-		if !strings.Contains(got, want) {
-			t.Fatalf("bundle output missing %q:\n%s", want, got)
+	wantLines := []string{
+		"==========",
+		"!! release snapshot",
+		"File: input.txt",
+	}
+	for i, want := range wantLines {
+		if lines[i] != want {
+			t.Fatalf("bundle output line %d = %q, want %q:\n%s", i, lines[i], want, got)
+		}
+	}
+	if !strings.HasPrefix(lines[3], "Time: ") {
+		t.Fatalf("bundle time line = %q, want Time prefix:\n%s", lines[3], got)
+	}
+	if _, err := time.Parse("2006-01-02 15:04:05", strings.TrimPrefix(lines[3], "Time: ")); err != nil {
+		t.Fatalf("bundle time line has invalid timestamp %q: %v", lines[3], err)
+	}
+	wantTail := []string{"==========", "alpha", "", "beta", "", ""}
+	for i, want := range wantTail {
+		lineIndex := i + 4
+		if lines[lineIndex] != want {
+			t.Fatalf("bundle output line %d = %q, want %q:\n%s", lineIndex, lines[lineIndex], want, got)
 		}
 	}
 	if fileCount != 1 {
