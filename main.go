@@ -34,8 +34,8 @@ var (
 func main() {
 	config := initConf()
 
-	if !isOutputWithinWorkingDirectory(config.Output) {
-		fmt.Printf("Refusing to write bundle output outside the working directory: %s\n", config.Output)
+	if err := validateOutputWithinWorkingDirectory(config.Output); err != nil {
+		fmt.Printf("Refusing to write bundle output: %v\n", err)
 		os.Exit(1)
 	}
 
@@ -111,37 +111,53 @@ func isOutputPath(path string, output string) bool {
 }
 
 func isOutputWithinWorkingDirectory(path string) bool {
+	return validateOutputWithinWorkingDirectory(path) == nil
+}
+
+func validateOutputWithinWorkingDirectory(path string) error {
 	path = strings.TrimSpace(path)
 	if path == "" {
-		return false
+		return fmt.Errorf("empty output path")
 	}
 
 	wd, wdErr := os.Getwd()
 	pathAbs, pathErr := filepath.Abs(path)
 	if wdErr != nil || pathErr != nil {
-		return false
+		return fmt.Errorf("resolve output path %q: %v", path, firstErr(wdErr, pathErr))
 	}
 	wd, wdErr = filepath.EvalSymlinks(wd)
 	if wdErr != nil {
-		return false
+		return fmt.Errorf("resolve working directory: %w", wdErr)
 	}
 
 	if _, statErr := os.Lstat(pathAbs); statErr == nil {
 		pathAbs, pathErr = filepath.EvalSymlinks(pathAbs)
 		if pathErr != nil {
-			return false
+			return fmt.Errorf("resolve output path %q: %w", path, pathErr)
 		}
 	} else if os.IsNotExist(statErr) {
 		parent, parentErr := filepath.EvalSymlinks(filepath.Dir(pathAbs))
 		if parentErr != nil {
-			return false
+			return fmt.Errorf("output parent directory does not exist or cannot be resolved: %s", filepath.Dir(path))
 		}
 		pathAbs = filepath.Join(parent, filepath.Base(pathAbs))
 	} else {
-		return false
+		return fmt.Errorf("inspect output path %q: %w", path, statErr)
 	}
 
-	return isPathWithinRoot(wd, pathAbs)
+	if !isPathWithinRoot(wd, pathAbs) {
+		return fmt.Errorf("output path is outside the working directory: %s", path)
+	}
+	return nil
+}
+
+func firstErr(errs ...error) error {
+	for _, err := range errs {
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func isWithinWorkingDirectory(path string) bool {

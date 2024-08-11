@@ -312,6 +312,23 @@ func TestIsOutputWithinWorkingDirectoryRejectsExternalSymlink(t *testing.T) {
 	}
 }
 
+func TestValidateOutputWithinWorkingDirectoryExplainsMissingParent(t *testing.T) {
+	dir := t.TempDir()
+	chdir(t, dir)
+
+	output := filepath.Join("missing", "bundle.bundle")
+	err := validateOutputWithinWorkingDirectory(output)
+	if err == nil {
+		t.Fatalf("validateOutputWithinWorkingDirectory(%q) error = nil, want error", output)
+	}
+	if !strings.Contains(err.Error(), "parent directory") {
+		t.Fatalf("validateOutputWithinWorkingDirectory(%q) error = %q, want parent directory context", output, err)
+	}
+	if strings.Contains(err.Error(), "outside the working directory") {
+		t.Fatalf("validateOutputWithinWorkingDirectory(%q) error = %q, want missing-parent message", output, err)
+	}
+}
+
 func TestCLIRejectsOutputOutsideWorkingDirectory(t *testing.T) {
 	parent := t.TempDir()
 	dir := filepath.Join(parent, "project")
