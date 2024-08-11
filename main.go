@@ -107,7 +107,16 @@ func isOutputPath(path string, output string) bool {
 	if pathErr != nil || outputErr != nil {
 		return filepath.Clean(path) == filepath.Clean(output)
 	}
-	return filepath.Clean(pathAbs) == filepath.Clean(outputAbs)
+	if filepath.Clean(pathAbs) == filepath.Clean(outputAbs) {
+		return true
+	}
+
+	pathInfo, pathStatErr := os.Stat(pathAbs)
+	outputInfo, outputStatErr := os.Stat(outputAbs)
+	if pathStatErr == nil && outputStatErr == nil {
+		return os.SameFile(pathInfo, outputInfo)
+	}
+	return false
 }
 
 func isOutputWithinWorkingDirectory(path string) bool {

@@ -94,11 +94,23 @@ func TestSeekConfFileName(t *testing.T) {
 }
 
 func TestIsOutputPath(t *testing.T) {
+	dir := t.TempDir()
+	chdir(t, dir)
+
+	if err := os.WriteFile("bundle.bundle", []byte("old\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	outputSymlinkSupported := true
+	if err := os.Symlink("bundle.bundle", "bundle-link.bundle"); err != nil {
+		outputSymlinkSupported = false
+	}
+
 	tests := []struct {
-		name   string
-		path   string
-		output string
-		want   bool
+		name     string
+		path     string
+		output   string
+		want     bool
+		skipLink bool
 	}{
 		{
 			name:   "matches same relative output",
@@ -131,6 +143,13 @@ func TestIsOutputPath(t *testing.T) {
 			want:   true,
 		},
 		{
+			name:     "matches symlink alias for existing output",
+			path:     "bundle-link.bundle",
+			output:   "bundle.bundle",
+			want:     true,
+			skipLink: true,
+		},
+		{
 			name:   "does not match empty output",
 			path:   "bundle.bundle",
 			output: "",
@@ -146,6 +165,9 @@ func TestIsOutputPath(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			if tt.skipLink && !outputSymlinkSupported {
+				t.Skip("symlink creation is not supported")
+			}
 			if got := isOutputPath(tt.path, tt.output); got != tt.want {
 				t.Fatalf("isOutputPath(%q, %q) = %t, want %t", tt.path, tt.output, got, tt.want)
 			}
@@ -564,6 +586,45 @@ func TestCLIExcludesOutputCreatedBeforeGlobExpansion(t *testing.T) {
 	}
 	if strings.Contains(got, "File: bundle.bundle") {
 		t.Errorf("file_bundle -i all.file_bundle_rc bundle contains %q = true, want false:\n%s", "File: bundle.bundle", got)
+	}
+}
+
+func TestCLIExcludesOutputSymlinkAlias(t *testing.T) {
+	dir := t.TempDir()
+	chdir(t, dir)
+
+	if err := os.WriteFile("input.txt", []byte("alpha\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile("bundle.bundle", []byte("old bundle\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink("bundle.bundle", "bundle-link.bundle"); err != nil {
+		t.Skipf("os.Symlink(%q, %q) error = %v; skipping output self-exclusion symlink smoke", "bundle.bundle", "bundle-link.bundle", err)
+	}
+
+	configPath := "all.file_bundle_rc"
+	config := Config{
+		Entry:  []string{"*"},
+		Output: "bundle.bundle",
+	}
+	writeConfig(t, configPath, config)
+
+	runMainForTest(t, "-i", configPath)
+
+	gotBytes, err := os.ReadFile("bundle.bundle")
+	if err != nil {
+		t.Fatalf("os.ReadFile(%q) error = %v, want nil", "bundle.bundle", err)
+	}
+	got := string(gotBytes)
+	if !strings.Contains(got, "File: input.txt") {
+		t.Errorf("file_bundle -i all.file_bundle_rc bundle contains %q = false, want true:\n%s", "File: input.txt", got)
+	}
+	if strings.Contains(got, "File: bundle-link.bundle") {
+		t.Errorf("file_bundle -i all.file_bundle_rc bundle contains output symlink alias = true, want false:\n%s", got)
+	}
+	if strings.Contains(got, "old bundle") {
+		t.Errorf("file_bundle -i all.file_bundle_rc bundle contains old output content = true, want false:\n%s", got)
 	}
 }
 
