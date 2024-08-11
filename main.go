@@ -66,7 +66,7 @@ func main() {
 		}
 
 		for _, match := range matches {
-			if !visited[match] && !excluded[match] && !isOutputPath(match, config.Output) {
+			if !visited[match] && !excluded[match] && isWithinWorkingDirectory(match) && !isOutputPath(match, config.Output) {
 				info, err := os.Stat(match)
 				if err != nil {
 					fmt.Printf("Error accessing the path %s: %v", match, err)
@@ -103,6 +103,31 @@ func isOutputPath(path string, output string) bool {
 		return filepath.Clean(path) == filepath.Clean(output)
 	}
 	return filepath.Clean(pathAbs) == filepath.Clean(outputAbs)
+}
+
+func isWithinWorkingDirectory(path string) bool {
+	path = strings.TrimSpace(path)
+	if path == "" {
+		return false
+	}
+
+	wd, wdErr := os.Getwd()
+	pathAbs, pathErr := filepath.Abs(path)
+	if wdErr != nil || pathErr != nil {
+		cleanPath := filepath.Clean(path)
+		return cleanPath != ".." && !strings.HasPrefix(cleanPath, ".."+string(os.PathSeparator))
+	}
+	wd, wdErr = filepath.EvalSymlinks(wd)
+	pathAbs, pathErr = filepath.EvalSymlinks(pathAbs)
+	if wdErr != nil || pathErr != nil {
+		return false
+	}
+
+	rel, err := filepath.Rel(wd, pathAbs)
+	if err != nil {
+		return false
+	}
+	return rel == "." || (rel != ".." && !strings.HasPrefix(rel, ".."+string(os.PathSeparator)))
 }
 
 func processFile(path string, outFile *os.File, config Config) {

@@ -150,6 +150,101 @@ func TestIsOutputPath(t *testing.T) {
 	}
 }
 
+func TestCLIRejectsEntryOutsideWorkingDirectory(t *testing.T) {
+	tests := []struct {
+		name         string
+		entry        []string
+		wantIncluded string
+		wantSkipped  string
+	}{
+		{
+			name:         "skips parent directory match",
+			entry:        []string{"input.txt", "../secret.txt"},
+			wantIncluded: "File: input.txt",
+			wantSkipped:  "outside",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			parent := t.TempDir()
+			dir := filepath.Join(parent, "project")
+			if err := os.Mkdir(dir, 0o755); err != nil {
+				t.Fatal(err)
+			}
+			chdir(t, dir)
+
+			if err := os.WriteFile(filepath.Join(parent, "secret.txt"), []byte("outside\n"), 0o644); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile("input.txt", []byte("inside\n"), 0o644); err != nil {
+				t.Fatal(err)
+			}
+			configPath := "paths.file_bundle_rc"
+			config := Config{
+				Entry:  tt.entry,
+				Output: "bundle.bundle",
+			}
+			var buf strings.Builder
+			if err := toml.NewEncoder(&buf).Encode(config); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(configPath, []byte(buf.String()), 0o644); err != nil {
+				t.Fatal(err)
+			}
+
+			originalArgs := os.Args
+			originalInput := input
+			originalOutput := output
+			originalShrink := shrink
+			originalTouchCMD := touchCMD
+			originalVerbose := verbose
+			originalLineCount := lineCount
+			originalCharCount := charCount
+			originalFileCount := fileCount
+			t.Cleanup(func() {
+				os.Args = originalArgs
+				input = originalInput
+				output = originalOutput
+				shrink = originalShrink
+				touchCMD = originalTouchCMD
+				verbose = originalVerbose
+				lineCount = originalLineCount
+				charCount = originalCharCount
+				fileCount = originalFileCount
+			})
+			setFlagArgs(t)
+			registerTestFlags()
+			os.Args = []string{"file_bundle", "-i", configPath}
+			input = ""
+			output = ""
+			shrink = false
+			touchCMD = false
+			verbose = false
+			lineCount = 0
+			charCount = 0
+			fileCount = 0
+
+			main()
+
+			gotBytes, err := os.ReadFile("bundle.bundle")
+			if err != nil {
+				t.Fatalf("os.ReadFile(%q) error = %v, want nil", "bundle.bundle", err)
+			}
+			got := string(gotBytes)
+			if !strings.Contains(got, tt.wantIncluded) {
+				t.Errorf("file_bundle -i paths.file_bundle_rc bundle contains %q = false, want true:\n%s", tt.wantIncluded, got)
+			}
+			if strings.Contains(got, tt.wantSkipped) {
+				t.Errorf("file_bundle -i paths.file_bundle_rc bundle contains %q = true, want false:\n%s", tt.wantSkipped, got)
+			}
+			if fileCount != 1 {
+				t.Errorf("fileCount after file_bundle -i paths.file_bundle_rc = %d, want 1", fileCount)
+			}
+		})
+	}
+}
+
 func TestProcessFileWritesBundleSectionAndUpdatesCounters(t *testing.T) {
 	dir := t.TempDir()
 	chdir(t, dir)
