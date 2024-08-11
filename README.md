@@ -1,21 +1,28 @@
-# File Bundle Tool
+# File Bundle
 
-Welcome to File Bundle – the versatile utility for developers looking to bundle multiple files into a single, neatly packaged file. Designed with simplicity and efficiency in mind, File Bundle streamlines the process of combining files for easier distribution, version control, or archiving purposes.
+File Bundle is a Go CLI and source file bundling utility. It reads a TOML
+configuration file, expands file and glob entries, excludes matching paths, and
+writes the selected file contents into one bundle file.
 
 ## Features
 
-- **Configurable Through TOML**: Use the human-friendly TOML format to easily configure your file bundling preferences.
-- **Flexible File Selection**: Specify exact file paths, patterns, or glob patterns for including files in your bundle.
-- **Exclusion Patterns**: Exclude files from your bundle using flexible glob patterns to avoid bundling unnecessary or sensitive files.
-- **Shrink Mode**: Reduce the size of the bundle by trimming unnecessary whitespace from your files.
-- **Verbose Mode**: Enable detailed logging for more insight into the bundling process.
-- **Quick Initialization**: Get started instantly with a generated default configuration file using a simple command.
+- Configure bundle inputs with TOML.
+- Include files by exact path or glob pattern.
+- Exclude paths by glob pattern.
+- Override the output file from the command line.
+- Use shrink mode to trim unnecessary whitespace.
+- Use verbose mode to print bundling details.
+- Generate a starter configuration with the touch command.
 
-## Getting Started
+## Installation
 
-To get started with File Bundle, you'll need to have a `.file_bundle_rc` configuration file in TOML format in your project directory. This file specifies which files should be included or excluded from the bundle, as well as the name of the output bundle file.
+```sh
+go install github.com/bagaking/file_bundle@latest
+```
 
-### Example .file_bundle_rc
+## Configuration
+
+Create a `.file_bundle_rc` TOML file in the project directory.
 
 ```toml
 entry = [
@@ -29,80 +36,62 @@ exclude = [
     "docs/**/*.md"
 ]
 output = "my_project.bundle"
+description = "optional bundle description"
 ```
 
-This configuration would result in bundling all Go source files from src, resources, and all JSON configuration files, while excluding vendor files, test files, and Markdown files inside the docs directory.
+Parameters:
 
+- `entry`: file paths or glob patterns to include.
+- `exclude`: glob patterns to exclude.
+- `output`: bundle output path.
+- `description`: optional text written into bundle file headers.
 
-#### All Parameters
+## Usage
 
-- entry: An array of strings that specify file paths or glob patterns for files to include in the bundle. 
-  - Example: entry = ["*.go", "assets/**/*"]
-- exclude: An array of strings that defines patterns for files to exclude from the bundle.
-  - Example: exclude = ["tmp/*", "*.tmp", "tests/*"]
-- output: A string that names the output bundle file. This is the final file where all the specified files will be bundled. 
-  - Example: output = "bundle_project_v1.bundle"
-- description
-
-### Installation
-
-To install File Bundle, use the following go get command:
-
-```sh
-go get github.com/bagaking/file_bundle
-```
-
-
-### Usage
-
-Creating a file bundle is as easy as running the following command:
+Bundle files with a specific config and output path:
 
 ```sh
 file_bundle -i .file_bundle_rc -o my_project.bundle
 ```
 
-For more information on command-line options, use the -h flag:
+Show command-line help:
 
 ```sh
 file_bundle -h
 ```
 
-#### Quick Initialization Command
+Generate a default config in the current directory:
 
-Don't have a .file_bundle_rc file? No problem!
-
-Run the following command to generate a default config in your current directory:
-
-```bash
-file_bundle -touch 
+```sh
+file_bundle -touch
 ```
 
-create a specific directory to generate a config file
+Create a `bundle/` directory with a config file and Makefile:
 
-```bash
+```sh
 file_bundle -touch dir
 ```
 
+Run shrink mode:
 
-#### other commands
+```sh
+file_bundle -s
+```
 
-- shrink: A boolean to indicate whether to engage shrink mode to eliminate unnecessary whitespaces.
-    - Example: `file_bundle -s`
+Run verbose mode:
 
-- verbose: A boolean that enables verbose logging if set to true. This will provide additional output logs during the bundling process.
-    - Example: `file_bundle -v`
+```sh
+file_bundle -v
+```
 
-## Local validation
+## Local Validation
 
-Run the test suite before opening a pull request:
+Run the test suite before submitting changes:
 
 ```sh
 go test ./...
 ```
 
-## Contribution
-
-We welcome contributions of all kinds: feature requests, bug reports, or pull requests. Please ensure to read through the contributing guidelines first.
-
 ## License
-File Bundle is released under the MIT License. Enjoy the relief of easily bundling files without the hassle of complex setup or configuration.
+
+File Bundle is released under the MIT License. See [LICENSE](LICENSE).
