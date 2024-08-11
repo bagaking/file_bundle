@@ -287,8 +287,19 @@ func TestTouchDirCreatesBundleConfigAndMakefileAndReturns(t *testing.T) {
 	}
 
 	makefilePath := filepath.Join("bundle", "Makefile")
-	if _, err := os.Stat(makefilePath); err != nil {
-		t.Fatalf("touch() with args %q Makefile stat error = %v, want nil", args, err)
+	makefileBytes, err := os.ReadFile(makefilePath)
+	if err != nil {
+		t.Fatalf("touch() with args %q Makefile read error = %v, want nil", args, err)
+	}
+	makefileContent := string(makefileBytes)
+	for _, want := range []string{
+		"FILE_BUNDLE_RCS :=",
+		"%.bundle.txt: %.file_bundle_rc",
+		"file_bundle -v -i $< -o $@",
+	} {
+		if !strings.Contains(makefileContent, want) {
+			t.Errorf("touch() with args %q Makefile content contains %q = false, want true:\n%s", args, want, makefileContent)
+		}
 	}
 }
 
