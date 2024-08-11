@@ -1,7 +1,7 @@
 entry = [
     "README.md", 
     "*.file_bundle_rc",
-    "./*"
+    "./**/*"
 ]
 
 exclude = [

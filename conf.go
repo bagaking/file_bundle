@@ -30,12 +30,14 @@ var (
 
 func init() {
 	// 增加 init 参数用于确定是否初始化配置文件
-	flag.BoolVar(&touchCMD, "touch", false, "initialize a default .file_bundle_rc")
 
 	flag.StringVar(&input, "i", "", "input .file_bundle_rc file name(s)")
 	flag.StringVar(&output, "o", "", "output file name")
 	flag.BoolVar(&shrink, "s", false, "shrink mode: trim unnecessary white space")
 	flag.BoolVar(&verbose, "v", false, "verbose mode")
+
+	flag.BoolVar(&touchCMD, "touch", false, `initialize a default _.file_bundle_rc, 
+-touch dir: give the flag "dir" to create a directory with .file_bundle_rc and Makefile`)
 }
 
 type Config struct {
@@ -48,7 +50,7 @@ type Config struct {
 // 如果用户执行 file_bundle -touch，则创建一个默认的配置文件或目录，然后退出
 func touch() {
 	defaultConf := Config{
-		Entry:   []string{"./*"},
+		Entry:   []string{"./**/*"},
 		Exclude: []string{".bundle", ".bundle.txt"},
 	}
 	var buf bytes.Buffer
@@ -94,8 +96,7 @@ func createConfDir(buf []byte) error {
 # hint: To embed this makefile as a sub-cmd into the room Makefile
 #
 # bundle:
-# 	$(MAKE) -C bundle -f Makefile clean
-#	$(MAKE) -f bundle/Makefile
+# 	$(MAKE) -f bundle/Makefile
 
 .PHONY: all bundle clean
 

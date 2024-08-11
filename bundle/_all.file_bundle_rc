@@ -1,4 +1,4 @@
-entry = ["./*"]
+entry = ["./**/*"]
 exclude = [".bundle", ".bundle.txt"]
 output = "bundle.bundle"
 description = ""

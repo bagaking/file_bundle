@@ -77,6 +77,13 @@ Run the following command to generate a default config in your current directory
 file_bundle -touch 
 ```
 
+create a specific directory to generate a config file
+
+```bash
+file_bundle -touch dir
+```
+
+
 #### other commands
 
 - shrink: A boolean to indicate whether to engage shrink mode to eliminate unnecessary whitespaces.

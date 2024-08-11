@@ -3,8 +3,7 @@
 # hint: To embed this makefile as a sub-cmd into the room Makefile
 #
 # bundle:
-# 	$(MAKE) -C bundle -f Makefile clean
-#	$(MAKE) -f bundle/Makefile
+# 	$(MAKE) -f bundle/Makefile
 
 .PHONY: all bundle clean
 
