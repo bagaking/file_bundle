@@ -65,7 +65,8 @@ func touch() {
 		if err = createConfDir(buf.Bytes()); err != nil {
 			exitWith("Could not create directory: %v", err)
 		}
-		exitWith("bundle directory with .file_bundle_rc and Makefile created successfully.")
+		fmt.Println("bundle directory with .file_bundle_rc and Makefile created successfully.")
+		return
 	} else {
 		defaultConf.Output = defaultName
 		err := toml.NewEncoder(&buf).Encode(defaultConf)
@@ -77,7 +78,8 @@ func touch() {
 		if err != nil {
 			exitWith("Could not write default config file: %v\n", err)
 		}
-		exitWith("%s created successfully.", fileName)
+		fmt.Printf("%s created successfully.\n", fileName)
+		return
 	}
 }
 

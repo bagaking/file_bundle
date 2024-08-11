@@ -1,11 +1,15 @@
 package main
 
 import (
+	"flag"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/BurntSushi/toml"
 )
 
 func TestShrinkContent(t *testing.T) {
@@ -229,6 +233,65 @@ func TestProcessFileWritesBundleSectionAndUpdatesCounters(t *testing.T) {
 	}
 }
 
+func TestTouchCreatesDefaultConfigAndReturns(t *testing.T) {
+	dir := t.TempDir()
+	chdir(t, dir)
+	args := []string{}
+	setFlagArgs(t, args...)
+
+	touch()
+
+	configPath := "_" + defaultConfigExt
+	got := readConfig(t, configPath)
+	want := Config{
+		Entry:   []string{defaultTouchEntryPattern()},
+		Exclude: []string{".bundle", ".bundle.txt"},
+		Output:  defaultName,
+	}
+	if got.Output != want.Output {
+		t.Errorf("touch() with args %q config output = %q, want %q", args, got.Output, want.Output)
+	}
+	if got.Description != want.Description {
+		t.Errorf("touch() with args %q config description = %q, want %q", args, got.Description, want.Description)
+	}
+	if !slices.Equal(got.Entry, want.Entry) {
+		t.Errorf("touch() with args %q config entry = %q, want %q", args, got.Entry, want.Entry)
+	}
+	if !slices.Equal(got.Exclude, want.Exclude) {
+		t.Errorf("touch() with args %q config exclude = %q, want %q", args, got.Exclude, want.Exclude)
+	}
+}
+
+func TestTouchDirCreatesBundleConfigAndMakefileAndReturns(t *testing.T) {
+	dir := t.TempDir()
+	chdir(t, dir)
+	args := []string{"dir"}
+	setFlagArgs(t, args...)
+
+	touch()
+
+	configPath := filepath.Join("bundle", "_all"+defaultConfigExt)
+	got := readConfig(t, configPath)
+	want := Config{
+		Entry:   []string{defaultTouchEntryPattern()},
+		Exclude: []string{".bundle", ".bundle.txt"},
+	}
+	if got.Output != want.Output {
+		t.Errorf("touch() with args %q config output = %q, want %q", args, got.Output, want.Output)
+	}
+	if !slices.Equal(got.Entry, want.Entry) {
+		t.Errorf("touch() with args %q config entry = %q, want %q", args, got.Entry, want.Entry)
+	}
+	if !slices.Equal(got.Exclude, want.Exclude) {
+		t.Errorf("touch() with args %q config exclude = %q, want %q", args, got.Exclude, want.Exclude)
+	}
+
+	makefilePath := filepath.Join("bundle", "Makefile")
+	if _, err := os.Stat(makefilePath); err != nil {
+		t.Fatalf("touch() with args %q Makefile stat error = %v, want nil", args, err)
+	}
+}
+
 func mustGetwd(t *testing.T) string {
 	t.Helper()
 
@@ -254,4 +317,36 @@ func chdir(t *testing.T, dir string) {
 			t.Fatal(err)
 		}
 	})
+}
+
+func setFlagArgs(t *testing.T, args ...string) {
+	t.Helper()
+
+	originalCommandLine := flag.CommandLine
+	flag.CommandLine = flag.NewFlagSet(t.Name(), flag.ContinueOnError)
+	if err := flag.CommandLine.Parse(args); err != nil {
+		t.Fatalf("flag.Parse(%q) error = %v, want nil", args, err)
+	}
+	t.Cleanup(func() {
+		flag.CommandLine = originalCommandLine
+	})
+}
+
+func readConfig(t *testing.T, path string) Config {
+	t.Helper()
+
+	content, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("os.ReadFile(%q) error = %v, want nil", path, err)
+	}
+	var config Config
+	if _, err := toml.Decode(string(content), &config); err != nil {
+		t.Fatalf("toml.Decode(%q) error = %v, want nil", path, err)
+	}
+	return config
+}
+
+func defaultTouchEntryPattern() string {
+	slash := string(os.PathSeparator)
+	return "." + slash + "**" + slash + "*"
 }
