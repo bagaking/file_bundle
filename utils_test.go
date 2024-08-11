@@ -3,6 +3,7 @@ package main
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -141,6 +142,74 @@ func TestIsOutputPath(t *testing.T) {
 				t.Fatalf("isOutputPath(%q, %q) = %t, want %t", tt.path, tt.output, got, tt.want)
 			}
 		})
+	}
+}
+
+func TestProcessFileWritesBundleSectionAndUpdatesCounters(t *testing.T) {
+	dir := t.TempDir()
+	chdir(t, dir)
+
+	inputPath := "input.txt"
+	if err := os.WriteFile(inputPath, []byte("  alpha  \n\n   \n beta\t\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	outFile, err := os.Create("bundle.bundle")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	originalShrink := shrink
+	originalVerbose := verbose
+	originalLineCount := lineCount
+	originalCharCount := charCount
+	originalFileCount := fileCount
+	t.Cleanup(func() {
+		shrink = originalShrink
+		verbose = originalVerbose
+		lineCount = originalLineCount
+		charCount = originalCharCount
+		fileCount = originalFileCount
+	})
+
+	shrink = true
+	verbose = false
+	lineCount = 0
+	charCount = 0
+	fileCount = 0
+
+	processFile(inputPath, outFile, Config{Description: "release snapshot"})
+
+	if err := outFile.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	gotBytes, err := os.ReadFile("bundle.bundle")
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := string(gotBytes)
+
+	wantSnippets := []string{
+		"==========\n",
+		"!! release snapshot\n",
+		"File: input.txt\n",
+		"Time: ",
+		"alpha\n\nbeta\n",
+	}
+	for _, want := range wantSnippets {
+		if !strings.Contains(got, want) {
+			t.Fatalf("bundle output missing %q:\n%s", want, got)
+		}
+	}
+	if fileCount != 1 {
+		t.Fatalf("fileCount = %d, want 1", fileCount)
+	}
+	if lineCount != 4 {
+		t.Fatalf("lineCount = %d, want 4", lineCount)
+	}
+	if charCount != len("alpha\n\nbeta\n") {
+		t.Fatalf("charCount = %d, want %d", charCount, len("alpha\n\nbeta\n"))
 	}
 }
 
