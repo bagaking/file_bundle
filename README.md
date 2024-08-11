@@ -84,12 +84,31 @@ Run verbose mode:
 file_bundle -v
 ```
 
+## Behavior Notes
+
+- Config paths are resolved from the current working directory.
+- If `-i` is omitted, `file_bundle` uses the first `*.file_bundle_rc` file in
+  the current directory only.
+- `entry` and `exclude` use doublestar glob patterns, so `**` can match nested
+  directories.
+- The output file is skipped when it also matches an entry pattern, which avoids
+  recursively bundling a previous run's output.
+- `bundle/Makefile` is a generated template for projects that run
+  `file_bundle -touch dir`; the repository-level validation entry point is the
+  root `Makefile`.
+
 ## Local Validation
 
 Run the test suite before submitting changes:
 
 ```sh
 go test ./...
+```
+
+Or use the repository validation target:
+
+```sh
+make check
 ```
 
 ## License
