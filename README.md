@@ -92,6 +92,14 @@ file_bundle -touch dir
 - verbose: A boolean that enables verbose logging if set to true. This will provide additional output logs during the bundling process.
     - Example: `file_bundle -v`
 
+## Local validation
+
+Run the test suite before opening a pull request:
+
+```sh
+go test ./...
+```
+
 ## Contribution
 
 We welcome contributions of all kinds: feature requests, bug reports, or pull requests. Please ensure to read through the contributing guidelines first.
