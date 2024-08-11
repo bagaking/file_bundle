@@ -233,6 +233,69 @@ func TestProcessFileWritesBundleSectionAndUpdatesCounters(t *testing.T) {
 	}
 }
 
+func TestCLIExcludesOutputCreatedBeforeGlobExpansion(t *testing.T) {
+	dir := t.TempDir()
+	chdir(t, dir)
+
+	if err := os.WriteFile("input.txt", []byte("alpha\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	configPath := "all.file_bundle_rc"
+	config := Config{
+		Entry:  []string{"*"},
+		Output: "bundle.bundle",
+	}
+	var buf strings.Builder
+	if err := toml.NewEncoder(&buf).Encode(config); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(configPath, []byte(buf.String()), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	originalArgs := os.Args
+	originalInput := input
+	originalOutput := output
+	originalShrink := shrink
+	originalVerbose := verbose
+	originalLineCount := lineCount
+	originalCharCount := charCount
+	originalFileCount := fileCount
+	t.Cleanup(func() {
+		os.Args = originalArgs
+		input = originalInput
+		output = originalOutput
+		shrink = originalShrink
+		verbose = originalVerbose
+		lineCount = originalLineCount
+		charCount = originalCharCount
+		fileCount = originalFileCount
+	})
+	setFlagArgs(t)
+	os.Args = []string{"file_bundle"}
+	input = configPath
+	output = ""
+	shrink = false
+	verbose = false
+	lineCount = 0
+	charCount = 0
+	fileCount = 0
+
+	main()
+
+	gotBytes, err := os.ReadFile("bundle.bundle")
+	if err != nil {
+		t.Fatalf("os.ReadFile(%q) error = %v, want nil", "bundle.bundle", err)
+	}
+	got := string(gotBytes)
+	if !strings.Contains(got, "File: input.txt") {
+		t.Errorf("file_bundle -i all.file_bundle_rc bundle contains %q = false, want true:\n%s", "File: input.txt", got)
+	}
+	if strings.Contains(got, "File: bundle.bundle") {
+		t.Errorf("file_bundle -i all.file_bundle_rc bundle contains %q = true, want false:\n%s", "File: bundle.bundle", got)
+	}
+}
+
 func TestTouchCreatesDefaultConfigAndReturns(t *testing.T) {
 	dir := t.TempDir()
 	chdir(t, dir)
