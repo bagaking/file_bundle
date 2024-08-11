@@ -257,6 +257,7 @@ func TestCLIExcludesOutputCreatedBeforeGlobExpansion(t *testing.T) {
 	originalInput := input
 	originalOutput := output
 	originalShrink := shrink
+	originalTouchCMD := touchCMD
 	originalVerbose := verbose
 	originalLineCount := lineCount
 	originalCharCount := charCount
@@ -266,16 +267,19 @@ func TestCLIExcludesOutputCreatedBeforeGlobExpansion(t *testing.T) {
 		input = originalInput
 		output = originalOutput
 		shrink = originalShrink
+		touchCMD = originalTouchCMD
 		verbose = originalVerbose
 		lineCount = originalLineCount
 		charCount = originalCharCount
 		fileCount = originalFileCount
 	})
 	setFlagArgs(t)
-	os.Args = []string{"file_bundle"}
-	input = configPath
+	registerTestFlags()
+	os.Args = []string{"file_bundle", "-i", configPath}
+	input = ""
 	output = ""
 	shrink = false
+	touchCMD = false
 	verbose = false
 	lineCount = 0
 	charCount = 0
@@ -404,6 +408,14 @@ func setFlagArgs(t *testing.T, args ...string) {
 	t.Cleanup(func() {
 		flag.CommandLine = originalCommandLine
 	})
+}
+
+func registerTestFlags() {
+	flag.StringVar(&input, "i", "", "input .file_bundle_rc file name(s)")
+	flag.StringVar(&output, "o", "", "output file name")
+	flag.BoolVar(&shrink, "s", false, "shrink mode: trim unnecessary white space")
+	flag.BoolVar(&verbose, "v", false, "verbose mode")
+	flag.BoolVar(&touchCMD, "touch", false, "initialize a default _.file_bundle_rc")
 }
 
 func readConfig(t *testing.T, path string) Config {
