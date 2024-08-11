@@ -2,3 +2,5 @@ github.com/BurntSushi/toml v1.3.2 h1:o7IhLm0Msx3BaB+n3Ag7L8EVlByGnpq14C4YWiu/gL8
 github.com/BurntSushi/toml v1.3.2/go.mod h1:CxXYINrC8qIiEnFrOxCa7Jy5BFHlXnUU2pbicEuybxQ=
 github.com/bmatcuk/doublestar v1.3.4 h1:gPypJ5xD31uhX6Tf54sDPUOBXTqKH4c9aPY66CyQrS0=
 github.com/bmatcuk/doublestar v1.3.4/go.mod h1:wiQtGV+rzVYxB7WIlirSN++5HPtPlXEo9MEoZQC/PmE=
+github.com/khicago/irr v0.0.0-20240309052027-df085c2216f6 h1:rtA26tT0ggG/veBxkhHwcqdUml5F/o8Cnc5Ov0FQLQ4=
+github.com/khicago/irr v0.0.0-20240309052027-df085c2216f6/go.mod h1:Xkg7IeaDuUdIGXfCYmJqMnxXznPAaRC50pGoyc4DcGQ=
