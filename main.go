@@ -18,7 +18,6 @@ package main
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -107,7 +106,7 @@ func isOutputPath(path string, output string) bool {
 }
 
 func processFile(path string, outFile *os.File, config Config) {
-	rawContent, err := ioutil.ReadFile(strings.TrimSpace(path))
+	rawContent, err := os.ReadFile(strings.TrimSpace(path))
 	if err != nil {
 		fmt.Printf("Could not read file '%s': %v", path, err)
 		os.Exit(1)
