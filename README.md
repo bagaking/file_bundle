@@ -99,16 +99,16 @@ file_bundle -v
 
 ## Local Validation
 
-Run the test suite before submitting changes:
-
-```sh
-go test ./...
-```
-
-Or use the repository validation target:
+Run the repository validation target before submitting changes:
 
 ```sh
 make check
+```
+
+To run only the Go test suite:
+
+```sh
+go test ./...
 ```
 
 ## License
