@@ -150,6 +150,83 @@ func TestIsOutputPath(t *testing.T) {
 	}
 }
 
+func TestIsWithinWorkingDirectory(t *testing.T) {
+	parent := t.TempDir()
+	dir := filepath.Join(parent, "project")
+	if err := os.Mkdir(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	chdir(t, dir)
+
+	if err := os.WriteFile("input.txt", []byte("inside\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	outsidePath := filepath.Join(parent, "secret.txt")
+	if err := os.WriteFile(outsidePath, []byte("outside\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	tests := []struct {
+		name string
+		path string
+		want bool
+	}{
+		{
+			name: "accepts normal inside path",
+			path: "input.txt",
+			want: true,
+		},
+		{
+			name: "rejects empty path",
+			path: "",
+			want: false,
+		},
+		{
+			name: "rejects parent path",
+			path: "../secret.txt",
+			want: false,
+		},
+		{
+			name: "rejects outside absolute path",
+			path: outsidePath,
+			want: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := isWithinWorkingDirectory(tt.path); got != tt.want {
+				t.Fatalf("isWithinWorkingDirectory(%q) = %t, want %t", tt.path, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestIsWithinWorkingDirectoryFailsClosedWhenWorkingDirectoryIsUnavailable(t *testing.T) {
+	parent := t.TempDir()
+	dir := filepath.Join(parent, "deleted")
+	if err := os.Mkdir(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	oldDir := mustGetwd(t)
+	if err := os.Chdir(dir); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		if err := os.Chdir(oldDir); err != nil {
+			t.Fatal(err)
+		}
+	})
+
+	if err := os.Remove(dir); err != nil {
+		t.Fatal(err)
+	}
+	if got := isWithinWorkingDirectory("input.txt"); got {
+		t.Fatal("isWithinWorkingDirectory() = true with unavailable cwd, want false")
+	}
+}
+
 func TestCLIRejectsEntryOutsideWorkingDirectory(t *testing.T) {
 	tests := []struct {
 		name         string

@@ -114,8 +114,7 @@ func isWithinWorkingDirectory(path string) bool {
 	wd, wdErr := os.Getwd()
 	pathAbs, pathErr := filepath.Abs(path)
 	if wdErr != nil || pathErr != nil {
-		cleanPath := filepath.Clean(path)
-		return cleanPath != ".." && !strings.HasPrefix(cleanPath, ".."+string(os.PathSeparator))
+		return false
 	}
 	wd, wdErr = filepath.EvalSymlinks(wd)
 	pathAbs, pathErr = filepath.EvalSymlinks(pathAbs)
