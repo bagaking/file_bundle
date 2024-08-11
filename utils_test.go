@@ -84,6 +84,54 @@ func TestSeekConfFileName(t *testing.T) {
 	})
 }
 
+func TestIsOutputPath(t *testing.T) {
+	tests := []struct {
+		name   string
+		path   string
+		output string
+		want   bool
+	}{
+		{
+			name:   "matches same relative output",
+			path:   "bundle.bundle",
+			output: "bundle.bundle",
+			want:   true,
+		},
+		{
+			name:   "normalizes dot segments",
+			path:   "./bundle.bundle",
+			output: "bundle.bundle",
+			want:   true,
+		},
+		{
+			name:   "ignores surrounding whitespace",
+			path:   " bundle.bundle ",
+			output: "./bundle.bundle",
+			want:   true,
+		},
+		{
+			name:   "does not match empty output",
+			path:   "bundle.bundle",
+			output: "",
+			want:   false,
+		},
+		{
+			name:   "does not match another file",
+			path:   "input.txt",
+			output: "bundle.bundle",
+			want:   false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := isOutputPath(tt.path, tt.output); got != tt.want {
+				t.Fatalf("isOutputPath(%q, %q) = %t, want %t", tt.path, tt.output, got, tt.want)
+			}
+		})
+	}
+}
+
 func chdir(t *testing.T, dir string) {
 	t.Helper()
 

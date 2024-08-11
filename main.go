@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -66,7 +67,7 @@ func main() {
 		}
 
 		for _, match := range matches {
-			if !visited[match] && !excluded[match] {
+			if !visited[match] && !excluded[match] && !isOutputPath(match, config.Output) {
 				info, err := os.Stat(match)
 				if err != nil {
 					fmt.Printf("Error accessing the path %s: %v", match, err)
@@ -89,6 +90,13 @@ func main() {
 		fmt.Printf(" - Total Characters: %d\n", charCount)
 		fmt.Println("==================================")
 	}
+}
+
+func isOutputPath(path string, output string) bool {
+	if output == "" {
+		return false
+	}
+	return strings.TrimSpace(filepath.Clean(path)) == strings.TrimSpace(filepath.Clean(output))
 }
 
 func processFile(path string, outFile *os.File, config Config) {
