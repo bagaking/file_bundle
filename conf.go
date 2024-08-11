@@ -19,6 +19,8 @@ const (
 	defaultConfigExt = ".file_bundle_rc"
 )
 
+var errFoundConfig = errors.New("config file found")
+
 var (
 	input   string
 	output  string
@@ -185,19 +187,29 @@ func seekConfFileName() (string, error) {
 	var configFile string
 
 	err := filepath.Walk(".", func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
 		if info.IsDir() && path != "." {
 			return filepath.SkipDir
 		}
 
 		if strings.HasSuffix(path, ".file_bundle_rc") {
 			configFile = path
-			return errors.New("found")
+			return errFoundConfig
 		}
 
 		return nil
 	})
 
-	if err == nil {
+	if errors.Is(err, errFoundConfig) {
+		return configFile, nil
+	}
+	if err != nil {
+		return "", err
+	}
+
+	if configFile == "" {
 		return "", irr.Error("config file not found")
 	}
 

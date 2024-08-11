@@ -1,6 +1,10 @@
 package main
 
-import "testing"
+import (
+	"os"
+	"path/filepath"
+	"testing"
+)
 
 func TestShrinkContent(t *testing.T) {
 	tests := []struct {
@@ -44,4 +48,55 @@ func TestShrinkContent(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestSeekConfFileName(t *testing.T) {
+	t.Run("finds config in current directory", func(t *testing.T) {
+		dir := t.TempDir()
+		chdir(t, dir)
+
+		if err := os.WriteFile("example.file_bundle_rc", []byte("entry = []\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Mkdir("nested", 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join("nested", "ignored.file_bundle_rc"), []byte("entry = []\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+
+		got, err := seekConfFileName()
+		if err != nil {
+			t.Fatalf("seekConfFileName() returned error: %v", err)
+		}
+		if got != "example.file_bundle_rc" {
+			t.Fatalf("seekConfFileName() = %q, want %q", got, "example.file_bundle_rc")
+		}
+	})
+
+	t.Run("returns not found when current directory has no config", func(t *testing.T) {
+		dir := t.TempDir()
+		chdir(t, dir)
+
+		if _, err := seekConfFileName(); err == nil {
+			t.Fatal("seekConfFileName() returned nil error, want not found error")
+		}
+	})
+}
+
+func chdir(t *testing.T, dir string) {
+	t.Helper()
+
+	oldDir, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chdir(dir); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		if err := os.Chdir(oldDir); err != nil {
+			t.Fatal(err)
+		}
+	})
 }
