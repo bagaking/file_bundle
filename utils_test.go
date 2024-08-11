@@ -110,6 +110,18 @@ func TestIsOutputPath(t *testing.T) {
 			want:   true,
 		},
 		{
+			name:   "matches relative path against absolute output",
+			path:   "bundle.bundle",
+			output: filepath.Join(mustGetwd(t), "bundle.bundle"),
+			want:   true,
+		},
+		{
+			name:   "matches dot segments against absolute output",
+			path:   "./tmp/../bundle.bundle",
+			output: filepath.Join(mustGetwd(t), "bundle.bundle"),
+			want:   true,
+		},
+		{
 			name:   "does not match empty output",
 			path:   "bundle.bundle",
 			output: "",
@@ -130,6 +142,16 @@ func TestIsOutputPath(t *testing.T) {
 			}
 		})
 	}
+}
+
+func mustGetwd(t *testing.T) string {
+	t.Helper()
+
+	wd, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	return wd
 }
 
 func chdir(t *testing.T, dir string) {

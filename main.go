@@ -93,10 +93,17 @@ func main() {
 }
 
 func isOutputPath(path string, output string) bool {
-	if output == "" {
+	path = strings.TrimSpace(path)
+	output = strings.TrimSpace(output)
+	if path == "" || output == "" {
 		return false
 	}
-	return strings.TrimSpace(filepath.Clean(path)) == strings.TrimSpace(filepath.Clean(output))
+	pathAbs, pathErr := filepath.Abs(path)
+	outputAbs, outputErr := filepath.Abs(output)
+	if pathErr != nil || outputErr != nil {
+		return filepath.Clean(path) == filepath.Clean(output)
+	}
+	return filepath.Clean(pathAbs) == filepath.Clean(outputAbs)
 }
 
 func processFile(path string, outFile *os.File, config Config) {
