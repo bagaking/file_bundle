@@ -34,6 +34,11 @@ var (
 func main() {
 	config := initConf()
 
+	if !isOutputWithinWorkingDirectory(config.Output) {
+		fmt.Printf("Refusing to write bundle output outside the working directory: %s\n", config.Output)
+		os.Exit(1)
+	}
+
 	outFile, err := os.Create(config.Output)
 	if err != nil {
 		fmt.Printf("Failed to create bundle file '%s'\nerr= %v\n", config.Output, err)
@@ -105,6 +110,40 @@ func isOutputPath(path string, output string) bool {
 	return filepath.Clean(pathAbs) == filepath.Clean(outputAbs)
 }
 
+func isOutputWithinWorkingDirectory(path string) bool {
+	path = strings.TrimSpace(path)
+	if path == "" {
+		return false
+	}
+
+	wd, wdErr := os.Getwd()
+	pathAbs, pathErr := filepath.Abs(path)
+	if wdErr != nil || pathErr != nil {
+		return false
+	}
+	wd, wdErr = filepath.EvalSymlinks(wd)
+	if wdErr != nil {
+		return false
+	}
+
+	if _, statErr := os.Lstat(pathAbs); statErr == nil {
+		pathAbs, pathErr = filepath.EvalSymlinks(pathAbs)
+		if pathErr != nil {
+			return false
+		}
+	} else if os.IsNotExist(statErr) {
+		parent, parentErr := filepath.EvalSymlinks(filepath.Dir(pathAbs))
+		if parentErr != nil {
+			return false
+		}
+		pathAbs = filepath.Join(parent, filepath.Base(pathAbs))
+	} else {
+		return false
+	}
+
+	return isPathWithinRoot(wd, pathAbs)
+}
+
 func isWithinWorkingDirectory(path string) bool {
 	path = strings.TrimSpace(path)
 	if path == "" {
@@ -122,7 +161,11 @@ func isWithinWorkingDirectory(path string) bool {
 		return false
 	}
 
-	rel, err := filepath.Rel(wd, pathAbs)
+	return isPathWithinRoot(wd, pathAbs)
+}
+
+func isPathWithinRoot(root string, path string) bool {
+	rel, err := filepath.Rel(root, path)
 	if err != nil {
 		return false
 	}
