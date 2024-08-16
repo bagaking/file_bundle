@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -197,6 +198,16 @@ func isPathWithinRoot(root string, path string) bool {
 	return rel == "." || (rel != ".." && !strings.HasPrefix(rel, ".."+string(os.PathSeparator)))
 }
 
+func bundleTimestamp() time.Time {
+	if sourceDateEpoch := os.Getenv("SOURCE_DATE_EPOCH"); sourceDateEpoch != "" {
+		seconds, err := strconv.ParseInt(sourceDateEpoch, 10, 64)
+		if err == nil {
+			return time.Unix(seconds, 0).UTC()
+		}
+	}
+	return time.Now()
+}
+
 func processFile(path string, outFile *os.File, config Config) {
 	rawContent, err := os.ReadFile(strings.TrimSpace(path))
 	if err != nil {
@@ -209,7 +220,7 @@ func processFile(path string, outFile *os.File, config Config) {
 	charCount += len(fileContent)
 	fileCount++
 
-	timestamp := time.Now()
+	timestamp := bundleTimestamp()
 	_, _ = outFile.WriteString("==========\n")
 	if config.Description != "" {
 		_, _ = outFile.WriteString(fmt.Sprintf("!! %s\n", config.Description))

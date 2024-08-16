@@ -93,6 +93,8 @@ file_bundle -v
   directories.
 - The output file is skipped when it also matches an entry pattern, which avoids
   recursively bundling a previous run's output.
+- Set `SOURCE_DATE_EPOCH` to a Unix timestamp to write stable bundle header
+  timestamps for reproducible bundles.
 - `bundle/Makefile` is a generated template for projects that run
   `file_bundle -touch dir`; the repository-level validation entry point is the
   root `Makefile`.

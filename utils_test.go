@@ -480,6 +480,7 @@ func TestCLIRejectsSymlinkOutsideWorkingDirectory(t *testing.T) {
 func TestProcessFileWritesBundleSectionAndUpdatesCounters(t *testing.T) {
 	dir := t.TempDir()
 	chdir(t, dir)
+	t.Setenv("SOURCE_DATE_EPOCH", "")
 
 	inputPath := "input.txt"
 	if err := os.WriteFile(inputPath, []byte("  alpha  \n\n   \n beta\t\n"), 0o644); err != nil {
@@ -557,6 +558,34 @@ func TestProcessFileWritesBundleSectionAndUpdatesCounters(t *testing.T) {
 	}
 	if charCount != len("alpha\n\nbeta\n") {
 		t.Fatalf("charCount = %d, want %d", charCount, len("alpha\n\nbeta\n"))
+	}
+}
+
+func TestProcessFileUsesSourceDateEpochWhenSet(t *testing.T) {
+	got := writeSingleFileBundle(t, "0")
+	if !strings.Contains(got, "Time: 1970-01-01 00:00:00") {
+		t.Fatalf("bundle output missing fixed SOURCE_DATE_EPOCH timestamp:\n%s", got)
+	}
+}
+
+func TestProcessFileUsesParseableTimestampWhenSourceDateEpochUnset(t *testing.T) {
+	got := writeSingleFileBundle(t)
+	if _, err := parseBundleTime(got); err != nil {
+		t.Fatalf("bundle output has invalid timestamp: %v\n%s", err, got)
+	}
+}
+
+func TestProcessFileFallsBackToCurrentTimeWhenSourceDateEpochInvalid(t *testing.T) {
+	before := time.Now().Add(-time.Second)
+	got := writeSingleFileBundle(t, "not-a-unix-second")
+	after := time.Now().Add(time.Second)
+
+	timestamp, err := parseBundleTime(got)
+	if err != nil {
+		t.Fatalf("bundle output has invalid timestamp: %v\n%s", err, got)
+	}
+	if timestamp.Before(before) || timestamp.After(after) {
+		t.Fatalf("bundle timestamp = %s, want between %s and %s", timestamp, before, after)
 	}
 }
 
@@ -816,6 +845,79 @@ func sourceRoot(t *testing.T) string {
 		t.Fatal("runtime.Caller(0) failed")
 	}
 	return filepath.Dir(filename)
+}
+
+func writeSingleFileBundle(t *testing.T, sourceDateEpoch ...string) string {
+	t.Helper()
+
+	dir := t.TempDir()
+	chdir(t, dir)
+	if len(sourceDateEpoch) > 0 {
+		t.Setenv("SOURCE_DATE_EPOCH", sourceDateEpoch[0])
+	} else {
+		unsetEnv(t, "SOURCE_DATE_EPOCH")
+	}
+
+	originalLineCount := lineCount
+	originalCharCount := charCount
+	originalFileCount := fileCount
+	t.Cleanup(func() {
+		lineCount = originalLineCount
+		charCount = originalCharCount
+		fileCount = originalFileCount
+	})
+	lineCount = 0
+	charCount = 0
+	fileCount = 0
+
+	inputPath := "input.txt"
+	if err := os.WriteFile(inputPath, []byte("alpha\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	outFile, err := os.Create("bundle.bundle")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	processFile(inputPath, outFile, Config{})
+
+	if err := outFile.Close(); err != nil {
+		t.Fatal(err)
+	}
+	gotBytes, err := os.ReadFile("bundle.bundle")
+	if err != nil {
+		t.Fatal(err)
+	}
+	return string(gotBytes)
+}
+
+func parseBundleTime(bundle string) (time.Time, error) {
+	for _, line := range strings.Split(bundle, "\n") {
+		if strings.HasPrefix(line, "Time: ") {
+			return time.ParseInLocation("2006-01-02 15:04:05", strings.TrimPrefix(line, "Time: "), time.Local)
+		}
+	}
+	return time.Time{}, errors.New("missing Time line")
+}
+
+func unsetEnv(t *testing.T, key string) {
+	t.Helper()
+
+	oldValue, hadValue := os.LookupEnv(key)
+	if err := os.Unsetenv(key); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		if hadValue {
+			if err := os.Setenv(key, oldValue); err != nil {
+				t.Fatal(err)
+			}
+			return
+		}
+		if err := os.Unsetenv(key); err != nil {
+			t.Fatal(err)
+		}
+	})
 }
 
 func registerTestFlags() {
